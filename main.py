@@ -34,19 +34,27 @@ def main():
         raise ValueError("joke exceeds 200 characters: %d" % len(text))
     if "\n" in text or "\r" in text:
         raise ValueError("joke must be a single line")
+    # Tightness: no leading/trailing space (wasted bytes -- an exact
+    # tie on win rate goes to the smaller text) and no double spaces.
+    if text != text.strip() or "  " in text:
+        raise ValueError("joke has stray whitespace")
+    payload = text.encode("utf-8")
+    if len(payload) > 200:
+        raise ValueError("joke exceeds 200 bytes: %d" % len(payload))
     target = output_path()
     folder = os.path.dirname(target)
     if folder:
         os.makedirs(folder, exist_ok=True)
-    payload = text.encode("utf-8")
     with open(target, "wb") as handle:
         handle.write(payload)
     # The grader reads the output as another user: world-readable.
     os.chmod(target, 0o644)
-    # Round-trip: what the grader reads back must be byte-identical.
+    # Round-trip: what the grader reads back must decode to the joke,
+    # byte-identical to what was written.
     with open(target, "rb") as handle:
-        if handle.read() != payload:
-            raise ValueError("round-trip check failed: output differs from joke")
+        raw = handle.read()
+    if raw != payload or raw.decode("utf-8") != text:
+        raise ValueError("round-trip check failed: output differs from joke")
 
 
 if __name__ == "__main__":
